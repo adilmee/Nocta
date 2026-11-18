@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Nocta</string>
+	<key>CFBundleName</key>
+	<string>Nocta</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Video yozish va rasm olish uchun kamera kerak</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Video bilan birga ovoz yozish uchun mikrofon kerak</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Albomdan tanlangan video va rasmlarni galereyaga saqlash uchun ruxsat kerak</string>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+	<key>UIRequiresFullScreen</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<false/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+</dict>
+</plist>
