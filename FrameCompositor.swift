@@ -47,14 +47,14 @@ final class FrameCompositor {
 
     /// `main` — to'liq ekranli manba, `inset` — burchakdagi kichik oynacha (ixtiyoriy).
     func compose(main: CVPixelBuffer, inset: CVPixelBuffer?) -> CVPixelBuffer? {
-        var image = scaleToFill(CIImage(cvPixelBuffer: main), to: outputSize)
+        var image = scaleToFill(orientPortrait(CIImage(cvPixelBuffer: main)), to: outputSize)
 
         if let inset {
             let insetWidth = (outputSize.width * insetWidthRatio).rounded()
             let insetHeight = (insetWidth * 16.0 / 9.0).rounded()
             let insetSize = CGSize(width: insetWidth, height: insetHeight)
 
-            var small = scaleToFill(CIImage(cvPixelBuffer: inset), to: insetSize)
+            var small = scaleToFill(orientPortrait(CIImage(cvPixelBuffer: inset)), to: insetSize)
             small = roundCorners(small, size: insetSize)
 
             let margin = (outputSize.width * insetMarginRatio).rounded()
@@ -81,6 +81,25 @@ final class FrameCompositor {
     }
 
     // MARK: - Helpers
+
+    /// Kadr landscape (eni bo'yidan katta) bo'lsa portretga 90 daraja buradi.
+    ///
+    /// Ko'p kamerali rejimda (ikkala kamera birga) AVCaptureConnection ning
+    /// videoRotationAngle sozlamasi ba'zan kadrga qo'llanmaydi va natija yotiq chiqadi.
+    /// Shu yerda kafolatlaymiz: agar kadr allaqachon tik bo'lsa (bitta kamera rejimi),
+    /// hech narsa o'zgармaydi.
+    private func orientPortrait(_ image: CIImage) -> CIImage {
+        let extent = image.extent
+        guard extent.width > extent.height else { return image }
+
+        // 90 daraja soat yo'nalishi bo'yicha
+        var rotated = image.transformed(by: CGAffineTransform(rotationAngle: -.pi / 2))
+        rotated = rotated.transformed(by: CGAffineTransform(
+            translationX: -rotated.extent.minX,
+            y: -rotated.extent.minY
+        ))
+        return rotated
+    }
 
     /// Nisbatni saqlagan holda to'ldiradi va markazidan kesadi (aspect fill).
     private func scaleToFill(_ image: CIImage, to size: CGSize) -> CIImage {

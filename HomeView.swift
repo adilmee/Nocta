@@ -99,9 +99,9 @@ struct HomeView: View {
 
     private var header: some View {
         VStack(spacing: 10) {
-            Image(systemName: "moon.stars.fill")
-                .font(.system(size: 32))
-                .foregroundStyle(.white.opacity(0.85))
+            // Ilova logosi (ikonkaga mos: oq halqa, ichida teshik)
+            LogoMark()
+                .frame(width: 76, height: 48)
 
             Text("blackC")
                 .font(.title2.weight(.semibold))
@@ -314,5 +314,26 @@ struct HomeView: View {
                     onOpenAlbum()
                 }
             }
+    }
+}
+
+// MARK: - Logo
+
+/// Ilova ikonkasiga mos belgi: oq "stadion" shakli, ichida qora teshik.
+/// SwiftUI bilan chiziladi, alohida rasm fayli kerak emas.
+struct LogoMark: View {
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            ZStack {
+                Capsule(style: .continuous)
+                    .fill(.white)
+                Capsule(style: .continuous)
+                    .fill(.black)
+                    .frame(width: w * 0.5, height: h * 0.34)
+            }
+            .frame(width: w, height: h)
+        }
     }
 }

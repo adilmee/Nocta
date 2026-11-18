@@ -20,6 +20,8 @@ struct ContentView: View {
     @State private var screen: Screen = .home
     /// Qora ekranga o'tishdan oldingi yorug'lik. Qaytishda shu qiymat tiklanadi.
     @State private var savedBrightness: CGFloat = UIScreen.main.brightness
+    /// URL orqali ochildi, lekin kamera ruxsati hali yo'q edi -> ruxsat berilgach yozamiz.
+    @State private var pendingAutoRecord = false
 
     private let transitionDuration: TimeInterval = 0.3
 
@@ -62,6 +64,32 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             handleScenePhase(phase)
+        }
+        .onChange(of: camera.isAuthorized) { _, authorized in
+            // URL orqali ochilib, ruxsat endigina berilgan bo'lsa, yozuvni boshlaymiz.
+            if authorized, pendingAutoRecord {
+                startAutoRecord()
+            }
+        }
+        .onOpenURL { url in
+            // blackc://record -> ilova ochilishi bilan to'g'ridan-to'g'ri qora ekran + yozuv.
+            // iPhone'da Action tugmasi yoki "Orqaga teginish" (Back Tap) bilan Shortcuts orqali
+            // ishga tushiriladi.
+            guard url.scheme == "blackc" else { return }
+            if camera.isAuthorized {
+                startAutoRecord()
+            } else {
+                pendingAutoRecord = true
+            }
+        }
+    }
+
+    /// URL orqali kelgan "darhol yozish" buyrug'ini bajaradi.
+    private func startAutoRecord() {
+        pendingAutoRecord = false
+        if screen == .album { closeAlbum() }
+        if screen == .home {
+            enterBlackScreen()
         }
     }
 
