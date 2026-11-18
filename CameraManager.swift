@@ -587,9 +587,9 @@ final class CameraManager: NSObject, ObservableObject {
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("NoctaTmp_\(UUID().uuidString).mov")
 
-            let audioSettings = self.audioDeviceInput == nil
+            let audioSettings: [String: Any]? = self.audioDeviceInput == nil
                 ? nil
-                : self.audioOutput.recommendedAudioSettingsForAssetWriter(writingTo: .mov) as? [String: Any]
+                : self.audioOutput.recommendedAudioSettingsForAssetWriter(writingTo: .mov)
 
             do {
                 try engine.start(url: url, size: self.outputSize, audioSettings: audioSettings)

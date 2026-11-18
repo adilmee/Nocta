@@ -269,6 +269,9 @@ final class MediaStore: ObservableObject {
             }.value
         case .video:
             image = await Self.videoThumbnail(url: item.url)
+        case .audio:
+            // Ovoz faylining rasmi yo'q -- to'rda waveform belgisi ko'rsatiladi.
+            image = nil
         }
 
         if let image {
