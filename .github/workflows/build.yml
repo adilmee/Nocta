@@ -14,7 +14,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          curl -sL https://github.com/yonaskolb/XcodeGen/releases/download/2.42.0/xcodegen.zip -o xcodegen.zip
+          unzip -q xcodegen.zip
+          sudo cp xcodegen/bin/xcodegen /usr/local/bin/xcodegen
+          sudo cp -r xcodegen/share/xcodegen /usr/local/share/xcodegen || true
 
       - name: Generate Xcode Project
         run: xcodegen generate
@@ -44,4 +48,3 @@ jobs:
           name: Nocta-IPA
           path: Nocta.ipa
           retention-days: 7
-

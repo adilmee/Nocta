@@ -10,21 +10,8 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: .
-        includes:
-          - "*.swift"
-          - "Assets.xcassets"
     info:
       path: Info.plist
-      properties:
-        CFBundleDisplayName: Nocta
-        CFBundleName: Nocta
-        NSCameraUsageDescription: "Video yozish va rasm olish uchun kamera kerak"
-        NSMicrophoneUsageDescription: "Video bilan birga ovoz yozish uchun mikrofon kerak"
-        NSPhotoLibraryAddUsageDescription: "Albomdan tanlangan video va rasmlarni galereyaga saqlash uchun ruxsat kerak"
-        UIViewControllerBasedStatusBarAppearance: true
-        UIRequiresFullScreen: true
-        UISupportedInterfaceOrientations:
-          - UIInterfaceOrientationPortrait
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nocta.app
@@ -33,3 +20,4 @@ targets:
         GENERATE_INFOPLIST_FILE: false
         INFOPLIST_FILE: Info.plist
         CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
