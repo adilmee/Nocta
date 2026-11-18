@@ -603,12 +603,20 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
-    func stopRecording() {
+    /// `completion` fayl albomga saqlanib bo'lgandan keyin asosiy oqimda chaqiriladi.
+    /// Ilova fonga o'tayotganda shu orqali tizimdan olingan muhlat tugatiladi.
+    func stopRecording(completion: (() -> Void)? = nil) {
         dataQueue.async { [weak self] in
-            guard let self, let engine = self.engine, engine.isRecording else { return }
+            guard let self, let engine = self.engine, engine.isRecording else {
+                DispatchQueue.main.async { completion?() }
+                return
+            }
 
             engine.finish { [weak self] url, error in
-                guard let self else { return }
+                guard let self else {
+                    DispatchQueue.main.async { completion?() }
+                    return
+                }
 
                 DispatchQueue.main.async {
                     self.isRecording = false
@@ -616,9 +624,12 @@ final class CameraManager: NSObject, ObservableObject {
                 }
 
                 if let url {
-                    self.saveVideo(at: url)
+                    self.saveVideo(at: url) {
+                        DispatchQueue.main.async { completion?() }
+                    }
                 } else {
                     self.publish(error: "Video saqlanmadi: \(error?.localizedDescription ?? "noma'lum xato")")
+                    DispatchQueue.main.async { completion?() }
                 }
             }
         }
@@ -668,13 +679,14 @@ final class CameraManager: NSObject, ObservableObject {
 
     // MARK: - Saving
 
-    private func saveVideo(at url: URL) {
+    private func saveVideo(at url: URL, completion: (() -> Void)? = nil) {
         store.addVideo(movedFrom: url) { [weak self] error in
             if let error {
                 self?.publish(error: "Video albomga qo'shilmadi: \(error.localizedDescription)")
             } else {
                 self?.publish(status: "Video albomga qo'shildi")
             }
+            completion?()
         }
     }
 
@@ -739,7 +751,25 @@ final class CameraManager: NSObject, ObservableObject {
     }
 
     @objc private func sessionWasInterrupted(_ notification: Notification) {
-        publish(error: "Kamera boshqa ilova tomonidan to'xtatildi")
+        guard let raw = notification.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int,
+              let reason = AVCaptureSession.InterruptionReason(rawValue: raw)
+        else { return }
+
+        switch reason {
+        case .videoDeviceNotAvailableInBackground:
+            // Ilova fonga o'tdi -- bu kutilgan holat, foydalanuvchiga xato ko'rsatmaymiz.
+            break
+        case .videoDeviceInUseByAnotherClient:
+            publish(error: "Kamerani boshqa ilova band qilib turibdi")
+        case .videoDeviceNotAvailableWithMultipleForegroundApps:
+            publish(error: "Split View rejimida kamera ishlamaydi")
+        case .videoDeviceNotAvailableDueToSystemPressure:
+            publish(error: "Qurilma qizib ketdi, kamera vaqtincha to'xtatildi")
+        case .audioDeviceInUseByAnotherClient:
+            publish(error: "Mikrofonni boshqa ilova band qilib turibdi")
+        @unknown default:
+            break
+        }
     }
 }
 

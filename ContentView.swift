@@ -142,21 +142,49 @@ struct ContentView: View {
             if screen == .black {
                 UIScreen.main.brightness = 0.0
                 UIApplication.shared.isIdleTimerDisabled = true
+
+                // Fonga o'tganda yozuv to'xtagan edi. Qora ekranga qaytdik -- davom etamiz,
+                // aks holda foydalanuvchi ekranga qarab yozish to'xtaganini bilmay qoladi.
+                if camera.mode == .video, !camera.isRecording {
+                    camera.startRecording()
+                    Haptics.start()
+                }
             }
 
-        case .inactive, .background:
-            // iOS kamerani fonda ishlashga qo'ymaydi, shuning uchun yozishni yopib,
-            // videoni saqlab qolamiz.
-            if camera.isRecording {
-                camera.stopRecording()
-            }
+        case .inactive:
+            // Bildirishnoma, Boshqaruv markazi va ilovalar ro'yxati ham shu holatni beradi.
+            // Yozishni to'xtatmaymiz -- aks holda har bir bildirishnoma yozuvni uzib qo'yardi.
+            // Lekin ilova shu yerdan yopilishi mumkin, shuning uchun yorug'likni tiklaymiz.
+            UIScreen.main.brightness = savedBrightness
+
+        case .background:
+            // iOS kamerani fonda ishlashga qo'ymaydi. Yozuvni yopib faylni saqlab qolamiz --
+            // buning uchun tizimdan qisqa muhlat so'raymiz, aks holda ilova faylni yozib
+            // ulgurmay to'xtatiladi va video yo'qoladi.
+            finishRecordingInBackground()
             restoreScreen()
-            if phase == .background {
-                camera.stopSession()
-            }
+            camera.stopSession()
 
         @unknown default:
             restoreScreen()
+        }
+    }
+
+    /// Fonga o'tishda yozuvni tugatish uchun tizimdan vaqt so'raydi.
+    private func finishRecordingInBackground() {
+        guard camera.isRecording else { return }
+
+        var taskID = UIBackgroundTaskIdentifier.invalid
+        taskID = UIApplication.shared.beginBackgroundTask(withName: "NoctaFinishRecording") {
+            guard taskID != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(taskID)
+            taskID = .invalid
+        }
+
+        camera.stopRecording {
+            guard taskID != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(taskID)
+            taskID = .invalid
         }
     }
 }
