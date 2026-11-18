@@ -82,6 +82,7 @@ final class CameraManager: NSObject, ObservableObject {
     @Published private(set) var isAuthorized = false
     @Published private(set) var isSessionRunning = false
     @Published private(set) var isMultiCamAvailable = false
+    @Published private(set) var isBackgroundAudioRecording = false
     @Published private(set) var statusMessage: String?
     @Published private(set) var errorMessage: String?
 
@@ -120,6 +121,7 @@ final class CameraManager: NSObject, ObservableObject {
     // MARK: Recording
     private var engine: RecordingEngine?
     private var compositor: FrameCompositor?
+    private let backgroundAudio = BackgroundAudioRecorder()
     private var outputSize = CGSize(width: 1080, height: 1920)
 
     private var durationTimer: Timer?
@@ -151,7 +153,7 @@ final class CameraManager: NSObject, ObservableObject {
             guard let self else { return }
 
             guard videoGranted else {
-                self.publish(error: "Kamera ruxsati yo'q. Sozlamalar -> Nocta -> Kamera'ni yoqing.")
+                self.publish(error: "Kamera ruxsati yo'q. Sozlamalar -> blackC -> Kamera'ni yoqing.")
                 return
             }
 
@@ -696,6 +698,34 @@ final class CameraManager: NSObject, ObservableObject {
                 self?.publish(error: "Rasm albomga qo'shilmadi: \(error.localizedDescription)")
             } else {
                 self?.publish(status: "Rasm albomga qo'shildi")
+            }
+        }
+    }
+
+    // MARK: - Background audio
+
+    /// Ilova fonga o'tganda chaqiriladi. iOS fonda kameraga ruxsat bermaydi,
+    /// shuning uchun video to'xtaydi, ovoz esa yozilishda davom etadi.
+    func startBackgroundAudio() {
+        guard !backgroundAudio.isRecording else { return }
+        do {
+            try backgroundAudio.start()
+            DispatchQueue.main.async { self.isBackgroundAudioRecording = true }
+        } catch {
+            publish(error: "Fonda ovoz yozilmadi: \(error.localizedDescription)")
+        }
+    }
+
+    /// Ilova qaytib ochilganda chaqiriladi: ovoz faylini albomga qo'shadi.
+    func stopBackgroundAudio() {
+        guard backgroundAudio.isRecording else { return }
+        let url = backgroundAudio.stop()
+        DispatchQueue.main.async { self.isBackgroundAudioRecording = false }
+
+        guard let url else { return }
+        store.addAudio(movedFrom: url) { [weak self] error in
+            if error == nil {
+                self?.publish(status: "Fondagi ovoz albomga qo'shildi")
             }
         }
     }

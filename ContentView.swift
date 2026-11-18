@@ -35,8 +35,9 @@ struct ContentView: View {
 
             switch screen {
             case .black:
+                // Chapga surilganda o'ng chetdan kirib keladi.
                 BlackScreenView(camera: camera, onExit: exitBlackScreen)
-                    .transition(.move(edge: .leading))
+                    .transition(.move(edge: .trailing))
 
             case .home:
                 HomeView(
@@ -48,8 +49,9 @@ struct ContentView: View {
                 .transition(.opacity)
 
             case .album:
+                // O'ngga surilganda chap chetdan kirib keladi.
                 AlbumView(store: store, onBack: closeAlbum)
-                    .transition(.move(edge: .trailing))
+                    .transition(.move(edge: .leading))
             }
         }
         .preferredColorScheme(.dark)
@@ -136,6 +138,9 @@ struct ContentView: View {
     private func handleScenePhase(_ phase: ScenePhase) {
         switch phase {
         case .active:
+            // Fonda ovoz yozilayotgan bo'lsa, to'xtatib albomga qo'shamiz.
+            camera.stopBackgroundAudio()
+
             if screen != .album {
                 camera.startSession()
             }
@@ -143,7 +148,7 @@ struct ContentView: View {
                 UIScreen.main.brightness = 0.0
                 UIApplication.shared.isIdleTimerDisabled = true
 
-                // Fonga o'tganda yozuv to'xtagan edi. Qora ekranga qaytdik -- davom etamiz,
+                // Fonga o'tganda video to'xtagan edi. Qora ekranga qaytdik -- davom etamiz,
                 // aks holda foydalanuvchi ekranga qarab yozish to'xtaganini bilmay qoladi.
                 if camera.mode == .video, !camera.isRecording {
                     camera.startRecording()
@@ -158,12 +163,18 @@ struct ContentView: View {
             UIScreen.main.brightness = savedBrightness
 
         case .background:
-            // iOS kamerani fonda ishlashga qo'ymaydi. Yozuvni yopib faylni saqlab qolamiz --
-            // buning uchun tizimdan qisqa muhlat so'raymiz, aks holda ilova faylni yozib
-            // ulgurmay to'xtatiladi va video yo'qoladi.
+            // iOS kamerani fonda ishlashga qo'ymaydi. Video yozilayotgan bo'lsa, uni yopib
+            // faylni saqlaymiz, so'ng mikrofon orqali ovozni yozishda davom etamiz.
+            let wasRecordingVideo = camera.isRecording
             finishRecordingInBackground()
             restoreScreen()
             camera.stopSession()
+
+            // Qora ekranda video yozilayotgan edi -> fonda ovozni davom ettiramiz.
+            // Telefon qulflansa yoki boshqa ilova ochilsa ham ovoz yozilaveradi.
+            if wasRecordingVideo, screen == .black {
+                camera.startBackgroundAudio()
+            }
 
         @unknown default:
             restoreScreen()

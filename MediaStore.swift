@@ -8,6 +8,9 @@ import UIKit
 enum MediaKind: Hashable {
     case photo
     case video
+    /// Ilova fonda ishlaganda yozilgan ovoz: iOS fonda kameraga ruxsat bermaydi,
+    /// mikrofonga esa beradi.
+    case audio
 }
 
 struct MediaItem: Identifiable, Hashable {
@@ -24,6 +27,8 @@ struct MediaItem: Identifiable, Hashable {
             kind = .video
         case "heic", "jpg", "jpeg":
             kind = .photo
+        case "m4a":
+            kind = .audio
         default:
             return nil
         }
@@ -114,6 +119,27 @@ final class MediaStore: ObservableObject {
         }
     }
 
+    /// Fonda yozilgan ovoz faylini albomga ko'chiradi.
+    func addAudio(movedFrom tempURL: URL, completion: @escaping (Error?) -> Void) {
+        io.async { [weak self] in
+            guard let self else { return }
+
+            let destination = self.folder.appendingPathComponent("AUD_\(Self.stamp()).m4a")
+
+            do {
+                try FileManager.default.moveItem(at: tempURL, to: destination)
+                let items = self.scan()
+                DispatchQueue.main.async {
+                    self.items = items
+                    completion(nil)
+                }
+            } catch {
+                try? FileManager.default.removeItem(at: tempURL)
+                DispatchQueue.main.async { completion(error) }
+            }
+        }
+    }
+
     func addPhoto(data: Data, completion: @escaping (Error?) -> Void) {
         io.async { [weak self] in
             guard let self else { return }
@@ -156,9 +182,12 @@ final class MediaStore: ObservableObject {
     // MARK: Export to Photos
 
     /// Tanlangan fayllarni galereyaga **nusxalaydi** -- asl nusxa albomda qoladi.
-    func export(_ itemsToExport: [MediaItem], completion: @escaping (Result<Int, ExportError>) -> Void) {
+    func export(_ selected: [MediaItem], completion: @escaping (Result<Int, ExportError>) -> Void) {
+        // Fotosuratlar ilovasi ovoz faylini saqlay olmaydi -- ularni chiqarib tashlaymiz.
+        let itemsToExport = selected.filter { $0.kind != .audio }
+
         guard !itemsToExport.isEmpty else {
-            completion(.success(0))
+            completion(.failure(.audioNotSupported))
             return
         }
 
@@ -193,12 +222,15 @@ final class MediaStore: ObservableObject {
 
     enum ExportError: Error {
         case noPermission
+        case audioNotSupported
         case failed(String)
 
         var message: String {
             switch self {
             case .noPermission:
-                return "Galereyaga saqlash uchun ruxsat yo'q. Sozlamalar -> Nocta -> Rasmlar."
+                return "Galereyaga saqlash uchun ruxsat yo'q. Sozlamalar -> blackC -> Rasmlar."
+            case .audioNotSupported:
+                return "Ovoz faylini galereyaga saqlab bo'lmaydi. Ulashish tugmasidan foydalaning."
             case .failed(let reason):
                 return "Saqlanmadi: \(reason)"
             }
@@ -272,7 +304,7 @@ final class MediaStore: ObservableObject {
     }
 
     func duration(of item: MediaItem) async -> TimeInterval? {
-        guard item.kind == .video else { return nil }
+        guard item.kind == .video || item.kind == .audio else { return nil }
         let asset = AVURLAsset(url: item.url)
         guard let duration = try? await asset.load(.duration) else { return nil }
         let seconds = CMTimeGetSeconds(duration)

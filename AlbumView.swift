@@ -163,10 +163,10 @@ struct AlbumView: View {
 
     private func kindBadge(_ item: MediaItem) -> some View {
         Group {
-            if item.kind == .video {
-                Image(systemName: "video.fill")
-            } else {
-                Image(systemName: "camera.fill")
+            switch item.kind {
+            case .video: Image(systemName: "video.fill")
+            case .photo: Image(systemName: "camera.fill")
+            case .audio: Image(systemName: "waveform")
             }
         }
         .font(.system(size: 10))
@@ -324,7 +324,7 @@ struct AlbumView: View {
 
     // MARK: - Gesture
 
-    /// O'ngga surish -> bosh ekranga qaytish.
+    /// Chapga surish -> bosh ekranga qaytish.
     /// Gorizontal harakat vertikaldan sezilarli ustun bo'lgandagina ishlaydi,
     /// aks holda ro'yxatni aylantirishga xalaqit beradi.
     private var backSwipe: some Gesture {
@@ -332,7 +332,7 @@ struct AlbumView: View {
             .onEnded { value in
                 let dx = value.translation.width
                 let dy = value.translation.height
-                guard dx > 100, dx > abs(dy) * 2.5 else { return }
+                guard dx < -100, -dx > abs(dy) * 2.5 else { return }
                 onBack()
             }
     }
@@ -353,7 +353,12 @@ struct MediaThumbnailView: View {
             ZStack {
                 Color.white.opacity(0.05)
 
-                if let image {
+                if item.kind == .audio {
+                    // Ovoz faylining rasmi yo'q -- to'lqin belgisi bilan ko'rsatamiz.
+                    Image(systemName: "waveform")
+                        .font(.system(size: geo.size.width * 0.3))
+                        .foregroundStyle(.white.opacity(0.5))
+                } else if let image {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
@@ -376,10 +381,10 @@ struct MediaThumbnailView: View {
         }
         .aspectRatio(1, contentMode: .fit)
         .task(id: item.id) {
-            if image == nil {
+            if image == nil, item.kind != .audio {
                 image = await store.thumbnail(for: item)
             }
-            if item.kind == .video, durationText == nil,
+            if (item.kind == .video || item.kind == .audio), durationText == nil,
                let seconds = await store.duration(of: item) {
                 durationText = MediaStore.formatDuration(seconds)
             }
@@ -396,6 +401,7 @@ struct MediaPreviewView: View {
 
     @State private var image: UIImage?
     @State private var player: AVPlayer?
+    @State private var isAudioPlaying = false
 
     var body: some View {
         ZStack {
@@ -414,6 +420,21 @@ struct MediaPreviewView: View {
             case .video:
                 VideoPlayer(player: player)
                     .ignoresSafeArea()
+
+            case .audio:
+                VStack(spacing: 20) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 72))
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text("Fonda yozilgan ovoz")
+                        .font(.headline)
+                        .foregroundStyle(.white.opacity(0.9))
+                    if isAudioPlaying {
+                        Label("Ijro etilmoqda", systemImage: "speaker.wave.2.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.green)
+                    }
+                }
             }
         }
         .overlay(alignment: .topLeading) {
@@ -429,6 +450,18 @@ struct MediaPreviewView: View {
             }
             .buttonStyle(.plain)
             .padding(.leading, 16)
+            .padding(.top, 16)
+        }
+        .overlay(alignment: .topTrailing) {
+            // Ulashish: ovoz faylini (va istalgan faylni) boshqa ilovaga yuborish uchun.
+            ShareLink(item: item.url) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(12)
+                    .background(Color.black.opacity(0.5), in: Circle())
+            }
+            .padding(.trailing, 16)
             .padding(.top, 16)
         }
         .overlay(alignment: .bottom) {
@@ -448,6 +481,12 @@ struct MediaPreviewView: View {
                 let newPlayer = AVPlayer(url: item.url)
                 player = newPlayer
                 newPlayer.play()
+
+            case .audio:
+                let newPlayer = AVPlayer(url: item.url)
+                player = newPlayer
+                newPlayer.play()
+                isAudioPlaying = true
             }
         }
         .onDisappear { player?.pause() }

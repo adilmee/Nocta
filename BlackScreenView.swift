@@ -5,7 +5,7 @@ import SwiftUI
 /// Boshqarish:
 ///   - bosish            -> rasm olish (Rasm rejimi) / yozishni to'xtatish-boshlash (Video rejimi)
 ///   - yuqoriga/pastga surish -> kamerani almashtirish (yozish paytida ham ishlaydi)
-///   - chapga surish      -> bosh ekranga qaytish (yozish to'xtatiladi va saqlanadi)
+///   - o'ngga surish      -> bosh ekranga qaytish (yozish to'xtatiladi va saqlanadi)
 struct BlackScreenView: View {
 
     @ObservedObject var camera: CameraManager
@@ -26,7 +26,7 @@ struct BlackScreenView: View {
             // Ekran ko'rinmasa ham VoiceOver foydalanuvchisi holatni bilishi uchun.
             .accessibilityElement()
             .accessibilityLabel(accessibilityLabel)
-            .accessibilityHint("Bosish: suratga olish yoki yozishni to'xtatish. Yuqoriga surish: kamerani almashtirish. Chapga surish: qaytish.")
+            .accessibilityHint("Bosish: suratga olish yoki yozishni to'xtatish. Yuqoriga surish: kamerani almashtirish. O'ngga surish: qaytish.")
     }
 
     private var accessibilityLabel: String {
@@ -80,8 +80,8 @@ struct BlackScreenView: View {
                     guard abs(dy) > switchThreshold else { return }
                     switchCamera()
                 } else {
-                    // Chapga surish -> qaytish
-                    guard dx < -exitThreshold, abs(dy) < 140 else { return }
+                    // O'ngga surish -> bosh ekranga qaytish
+                    guard dx > exitThreshold, abs(dy) < 140 else { return }
                     onExit()
                 }
             }

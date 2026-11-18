@@ -62,12 +62,14 @@ struct HomeView: View {
 
     private var topBar: some View {
         HStack {
+            Spacer()
+
+            // Albom o'ngga surish bilan ochiladi, shuning uchun tugma ham o'ngda
+            // va strelka o'ngga qaraydi.
             Button {
                 onOpenAlbum()
             } label: {
                 HStack(spacing: 7) {
-                    Image(systemName: "chevron.left")
-                        .font(.caption.weight(.semibold))
                     Image(systemName: "photo.stack")
                         .font(.body)
                     Text("Albom")
@@ -80,6 +82,8 @@ struct HomeView: View {
                             .padding(.vertical, 2)
                             .background(Color.white, in: Capsule())
                     }
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
                 }
                 .foregroundStyle(.white.opacity(0.9))
                 .padding(.vertical, 9)
@@ -87,8 +91,6 @@ struct HomeView: View {
                 .background(Capsule().fill(Color.white.opacity(0.08)))
             }
             .buttonStyle(.plain)
-
-            Spacer()
         }
         .padding(.horizontal, 16)
     }
@@ -101,7 +103,7 @@ struct HomeView: View {
                 .font(.system(size: 32))
                 .foregroundStyle(.white.opacity(0.85))
 
-            Text("Nocta")
+            Text("blackC")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(.white)
 
@@ -249,15 +251,17 @@ struct HomeView: View {
                 onEnterBlackScreen()
             } label: {
                 HStack(spacing: 12) {
-                    Text("Qora ekran")
-                        .font(.headline)
+                    // Qora ekran chapga surish bilan ochiladi -- strelkalar chapga qaraydi.
                     HStack(spacing: -4) {
-                        ForEach(0..<3, id: \.self) { index in
-                            Image(systemName: "chevron.right")
+                        ForEach(Array((0..<3).reversed()), id: \.self) { index in
+                            Image(systemName: "chevron.left")
                                 .opacity(chevronOpacity(index))
                         }
                     }
                     .font(.headline)
+
+                    Text("Qora ekran")
+                        .font(.headline)
                 }
                 .foregroundStyle(.white.opacity(camera.isAuthorized ? 0.9 : 0.3))
                 .padding(.vertical, 16)
@@ -269,7 +273,7 @@ struct HomeView: View {
             .disabled(!camera.isAuthorized)
 
             VStack(spacing: 4) {
-                Text("← albom   ·   qora ekran →")
+                Text("chapga suring — qora ekran   ·   o'ngga — albom")
                 Text("qora ekranda yuqoriga surish — kamerani almashtiradi")
             }
             .font(.caption2)
@@ -279,7 +283,8 @@ struct HomeView: View {
     }
 
     private func chevronOpacity(_ index: Int) -> Double {
-        let progress = min(1, max(0, dragOffset / swipeThreshold))
+        // Qora ekran chapga surish bilan ochiladi, ya'ni dragOffset manfiy bo'ladi.
+        let progress = min(1, max(0, -dragOffset / swipeThreshold))
         let step = Double(index + 1) / 3.0
         return progress >= step ? 1.0 : 0.35
     }
@@ -302,9 +307,10 @@ struct HomeView: View {
 
                 guard camera.isAuthorized, isHorizontal else { return }
 
-                if dx > swipeThreshold {
+                // Chapga surish -> qora ekran (yozish), o'ngga surish -> albom.
+                if dx < -swipeThreshold {
                     onEnterBlackScreen()
-                } else if dx < -swipeThreshold {
+                } else if dx > swipeThreshold {
                     onOpenAlbum()
                 }
             }
