@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Bosh ekran: rejim tanlanadi.
-///   o'ngga surish -> qora ekran (yozish shu yerda ketadi)
-///   chapga surish -> albom (olingan fayllar)
+///   o'ngga surish -> qora ekran (yozish)
+///   chapga surish -> albom (kod so'raladi)
 struct HomeView: View {
 
     @ObservedObject var camera: CameraManager
@@ -10,6 +10,7 @@ struct HomeView: View {
 
     let onEnterBlackScreen: () -> Void
     let onOpenAlbum: () -> Void
+    let onOpenSettings: () -> Void
 
     /// Surish paytidagi real vaqt siljishi -- harakat sezilib turishi uchun.
     @State private var dragOffset: CGFloat = 0
@@ -21,11 +22,25 @@ struct HomeView: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                topBar
-                    .padding(.top, 8)
+                // Sozlamalar tugmasi
+                HStack {
+                    Spacer()
+                    Button(action: onOpenSettings) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 17))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(10)
+                            .background(Circle().fill(Color.white.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+
+                // Logo va sarlavha biroz pastroqda tursin
+                Spacer().frame(height: 46)
 
                 header
-                    .padding(.top, 24)
 
                 Spacer()
 
@@ -49,8 +64,7 @@ struct HomeView: View {
                 messages
                     .frame(height: 44)
 
-                swipeArea
-                    .padding(.bottom, 32)
+                bottomBar
             }
             .offset(x: dragOffset * 0.3)
         }
@@ -58,50 +72,13 @@ struct HomeView: View {
         .gesture(swipeGesture)
     }
 
-    // MARK: - Top bar
-
-    private var topBar: some View {
-        HStack {
-            Spacer()
-
-            // Albom o'ngga surish bilan ochiladi, shuning uchun tugma ham o'ngda
-            // va strelka o'ngga qaraydi.
-            Button {
-                onOpenAlbum()
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "photo.stack")
-                        .font(.body)
-                    Text("Albom")
-                        .font(.subheadline.weight(.medium))
-                    if !store.items.isEmpty {
-                        Text("\(store.items.count)")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.white, in: Capsule())
-                    }
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                }
-                .foregroundStyle(.white.opacity(0.9))
-                .padding(.vertical, 9)
-                .padding(.horizontal, 14)
-                .background(Capsule().fill(Color.white.opacity(0.08)))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 16)
-    }
-
     // MARK: - Header
 
     private var header: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             // Ilova logosi (ikonkaga mos: oq halqa, ichida teshik)
             LogoMark()
-                .frame(width: 76, height: 48)
+                .frame(width: 80, height: 50)
 
             Text("blackC")
                 .font(.title2.weight(.semibold))
@@ -149,7 +126,7 @@ struct HomeView: View {
                     .font(.headline)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 28)
+            .padding(.vertical, 26)
             .foregroundStyle(isSelected ? .white : .gray)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -241,52 +218,77 @@ struct HomeView: View {
         .foregroundStyle(color)
     }
 
-    // MARK: - Swipe area
+    // MARK: - Bottom bar
 
-    private var swipeArea: some View {
-        VStack(spacing: 14) {
-            // Surish uchun ko'rsatma. Tugma sifatida ham ishlaydi -- qo'l bilan surish
-            // qiyin bo'lgan holatda (yoki VoiceOver bilan) bosib ham o'tiladi.
-            Button {
-                onEnterBlackScreen()
-            } label: {
-                HStack(spacing: 12) {
-                    // Qora ekran chapga surish bilan ochiladi -- strelkalar chapga qaraydi.
-                    HStack(spacing: -4) {
-                        ForEach(Array((0..<3).reversed()), id: \.self) { index in
-                            Image(systemName: "chevron.left")
-                                .opacity(chevronOpacity(index))
-                        }
-                    }
-                    .font(.headline)
+    /// Ikkala o'tish tugmasi pastda yonma-yon, shisha (liquid glass) panelda.
+    private var bottomBar: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 8) {
+                barButton(
+                    title: "Kamera",
+                    icon: camera.mode.icon,
+                    accent: .white,
+                    badge: nil,
+                    action: onEnterBlackScreen
+                )
+                .disabled(!camera.isAuthorized)
+                .opacity(camera.isAuthorized ? 1 : 0.35)
 
-                    Text("Qora ekran")
-                        .font(.headline)
-                }
-                .foregroundStyle(.white.opacity(camera.isAuthorized ? 0.9 : 0.3))
-                .padding(.vertical, 16)
-                .padding(.horizontal, 28)
-                .background(Capsule().fill(Color.white.opacity(0.08)))
-                .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
+                barButton(
+                    title: "Albom",
+                    icon: "lock.fill",
+                    accent: .white,
+                    badge: store.items.isEmpty ? nil : store.items.count,
+                    action: onOpenAlbum
+                )
             }
-            .buttonStyle(.plain)
-            .disabled(!camera.isAuthorized)
+            .padding(7)
+            .liquidGlass(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
 
-            VStack(spacing: 4) {
-                Text("chapga suring — qora ekran   ·   o'ngga — albom")
-                Text("qora ekranda yuqoriga surish — kamerani almashtiradi")
-            }
-            .font(.caption2)
-            .foregroundStyle(.gray.opacity(0.8))
-            .multilineTextAlignment(.center)
+            Text("o'ngga suring — kamera   ·   chapga — albom")
+                .font(.caption2)
+                .foregroundStyle(.gray.opacity(0.75))
         }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
     }
 
-    private func chevronOpacity(_ index: Int) -> Double {
-        // Qora ekran chapga surish bilan ochiladi, ya'ni dragOffset manfiy bo'ladi.
-        let progress = min(1, max(0, -dragOffset / swipeThreshold))
-        let step = Double(index + 1) / 3.0
-        return progress >= step ? 1.0 : 0.35
+    private func barButton(
+        title: String,
+        icon: String,
+        accent: Color,
+        badge: Int?,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            action()
+            Haptics.select()
+        } label: {
+            HStack(spacing: 9) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+
+                if let badge {
+                    Text("\(badge)")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.white, in: Capsule())
+                }
+            }
+            .foregroundStyle(accent)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(Color.white.opacity(0.10))
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Gesture
@@ -307,10 +309,10 @@ struct HomeView: View {
 
                 guard camera.isAuthorized, isHorizontal else { return }
 
-                // Chapga surish -> qora ekran (yozish), o'ngga surish -> albom.
-                if dx < -swipeThreshold {
+                // O'ngga surish -> qora ekran (kamera), chapga surish -> albom.
+                if dx > swipeThreshold {
                     onEnterBlackScreen()
-                } else if dx > swipeThreshold {
+                } else if dx < -swipeThreshold {
                     onOpenAlbum()
                 }
             }
@@ -334,6 +336,23 @@ struct LogoMark: View {
                     .frame(width: w * 0.5, height: h * 0.34)
             }
             .frame(width: w, height: h)
+        }
+    }
+}
+
+// MARK: - Liquid glass
+
+extension View {
+    /// iOS 26+ da tizimning haqiqiy "Liquid Glass" effekti,
+    /// eskiroq versiyalarda esa unga yaqin material + nozik ramka.
+    @ViewBuilder
+    func liquidGlass(in shape: some Shape) -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular, in: shape)
+        } else {
+            self
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.stroke(Color.white.opacity(0.18), lineWidth: 1))
         }
     }
 }

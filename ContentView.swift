@@ -22,6 +22,8 @@ struct ContentView: View {
     @State private var savedBrightness: CGFloat = UIScreen.main.brightness
     /// URL orqali ochildi, lekin kamera ruxsati hali yo'q edi -> ruxsat berilgach yozamiz.
     @State private var pendingAutoRecord = false
+    @State private var showAlbumLock = false
+    @State private var showSettings = false
 
     private let transitionDuration: TimeInterval = 0.3
 
@@ -39,28 +41,41 @@ struct ContentView: View {
             case .black:
                 // Chapga surilganda o'ng chetdan kirib keladi.
                 BlackScreenView(camera: camera, onExit: exitBlackScreen)
-                    .transition(.move(edge: .trailing))
+                    .transition(.move(edge: .leading))
 
             case .home:
                 HomeView(
                     camera: camera,
                     store: store,
                     onEnterBlackScreen: enterBlackScreen,
-                    onOpenAlbum: openAlbum
+                    onOpenAlbum: requestAlbum,
+                    onOpenSettings: { showSettings = true }
                 )
                 .transition(.opacity)
 
             case .album:
                 // O'ngga surilganda chap chetdan kirib keladi.
                 AlbumView(store: store, onBack: closeAlbum)
-                    .transition(.move(edge: .leading))
+                    .transition(.move(edge: .trailing))
             }
         }
         .preferredColorScheme(.dark)
         .statusBarHidden(screen == .black)
         .persistentSystemOverlays(screen == .black ? .hidden : .automatic)
         .onAppear {
+            PinStore.seedIfNeeded()
             camera.requestAccess()
+        }
+        .fullScreenCover(isPresented: $showAlbumLock) {
+            PinLockView(mode: .unlock) { _ in
+                showAlbumLock = false
+                openAlbum()
+            } onCancel: {
+                showAlbumLock = false
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView { showSettings = false }
         }
         .onChange(of: scenePhase) { _, phase in
             handleScenePhase(phase)
@@ -133,6 +148,16 @@ struct ContentView: View {
             screen = .home
         }
         Haptics.exit()
+    }
+
+    /// Albomga kirish so'ralganda: kod yoqilgan bo'lsa avval uni so'raymiz.
+    private func requestAlbum() {
+        guard screen == .home else { return }
+        if PinStore.isEnabled {
+            showAlbumLock = true
+        } else {
+            openAlbum()
+        }
     }
 
     private func openAlbum() {

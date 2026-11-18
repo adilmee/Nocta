@@ -14,6 +14,7 @@
 		F10000022800000000000005 /* AlbumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000012800000000000005 /* AlbumView.swift */; };
 		F10000022800000000000006 /* CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000012800000000000006 /* CameraManager.swift */; };
 		F10000022800000000000007 /* RecordingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000012800000000000007 /* RecordingEngine.swift */; };
+		F100000228000000000000B2 /* SettingsAndLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000128000000000000B2 /* SettingsAndLock.swift */; };
 		F100000228000000000000A1 /* BackgroundAudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F100000128000000000000A1 /* BackgroundAudioRecorder.swift */; };
 		F10000022800000000000008 /* FrameCompositor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000012800000000000008 /* FrameCompositor.swift */; };
 		F10000022800000000000009 /* MediaStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000012800000000000009 /* MediaStore.swift */; };
@@ -29,6 +30,7 @@
 		F10000012800000000000005 /* AlbumView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumView.swift; sourceTree = "<group>"; };
 		F10000012800000000000006 /* CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraManager.swift; sourceTree = "<group>"; };
 		F10000012800000000000007 /* RecordingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingEngine.swift; sourceTree = "<group>"; };
+		F100000128000000000000B2 /* SettingsAndLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAndLock.swift; sourceTree = "<group>"; };
 		F100000128000000000000A1 /* BackgroundAudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundAudioRecorder.swift; sourceTree = "<group>"; };
 		F10000012800000000000008 /* FrameCompositor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameCompositor.swift; sourceTree = "<group>"; };
 		F10000012800000000000009 /* MediaStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaStore.swift; sourceTree = "<group>"; };
@@ -57,6 +59,7 @@
 				F10000012800000000000005 /* AlbumView.swift */,
 				F10000012800000000000006 /* CameraManager.swift */,
 				F10000012800000000000007 /* RecordingEngine.swift */,
+				F100000128000000000000B2 /* SettingsAndLock.swift */,
 				F100000128000000000000A1 /* BackgroundAudioRecorder.swift */,
 				F10000012800000000000008 /* FrameCompositor.swift */,
 				F10000012800000000000009 /* MediaStore.swift */,
@@ -150,6 +153,7 @@
 				F10000022800000000000005 /* AlbumView.swift in Sources */,
 				F10000022800000000000006 /* CameraManager.swift in Sources */,
 				F10000022800000000000007 /* RecordingEngine.swift in Sources */,
+				F100000228000000000000B2 /* SettingsAndLock.swift in Sources */,
 				F100000228000000000000A1 /* BackgroundAudioRecorder.swift in Sources */,
 				F10000022800000000000008 /* FrameCompositor.swift in Sources */,
 				F10000022800000000000009 /* MediaStore.swift in Sources */,

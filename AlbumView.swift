@@ -14,8 +14,47 @@ struct AlbumView: View {
     @State private var isExporting = false
     @State private var bannerText: String?
     @State private var bannerIsError = false
+    @State private var filter: AlbumFilter = .all
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 3)
+
+    /// Albom tepasidagi tur bo'yicha saralash.
+    enum AlbumFilter: String, CaseIterable, Identifiable {
+        case all, video, photo, audio
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .all: return "Hammasi"
+            case .video: return "Video"
+            case .photo: return "Rasm"
+            case .audio: return "Ovoz"
+            }
+        }
+
+        func matches(_ item: MediaItem) -> Bool {
+            switch self {
+            case .all: return true
+            case .video: return item.kind == .video
+            case .photo: return item.kind == .photo
+            case .audio: return item.kind == .audio
+            }
+        }
+    }
+
+    private var visibleItems: [MediaItem] {
+        store.items.filter { filter.matches($0) }
+    }
+
+    /// Sana bo'yicha guruhlangan ro'yxat (eng yangisi tepada).
+    private var groups: [(day: Date, items: [MediaItem])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: visibleItems) { calendar.startOfDay(for: $0.createdAt) }
+        return grouped.keys.sorted(by: >).map { day in
+            (day, grouped[day]?.sorted { $0.createdAt > $1.createdAt } ?? [])
+        }
+    }
 
     private var selectedItems: [MediaItem] {
         store.items.filter { selection.contains($0.id) }
@@ -38,7 +77,11 @@ struct AlbumView: View {
                         .padding(.horizontal, 20)
                 }
 
-                if store.items.isEmpty {
+                if !store.items.isEmpty {
+                    filterBar
+                }
+
+                if visibleItems.isEmpty {
                     emptyState
                 } else {
                     grid
@@ -114,18 +157,81 @@ struct AlbumView: View {
         .padding(.vertical, 12)
     }
 
+    // MARK: - Filter
+
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(AlbumFilter.allCases) { option in
+                    let isOn = filter == option
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) { filter = option }
+                        Haptics.select()
+                    } label: {
+                        Text(option.title)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(isOn ? .black : .gray)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(
+                                Capsule().fill(isOn ? Color.white : Color.white.opacity(0.08))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.bottom, 10)
+    }
+
     // MARK: - Grid
 
     private var grid: some View {
         ScrollView {
-            LazyVGrid(columns: columns, spacing: 3) {
-                ForEach(store.items) { item in
-                    cell(for: item)
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                ForEach(groups, id: \.day) { group in
+                    Section {
+                        LazyVGrid(columns: columns, spacing: 3) {
+                            ForEach(group.items) { item in
+                                cell(for: item)
+                            }
+                        }
+                        .padding(.horizontal, 3)
+                        .padding(.bottom, 14)
+                    } header: {
+                        sectionHeader(group.day, count: group.items.count)
+                    }
                 }
             }
-            .padding(.horizontal, 3)
             .padding(.bottom, 16)
         }
+    }
+
+    private func sectionHeader(_ day: Date, count: Int) -> some View {
+        HStack {
+            Text(Self.dayTitle(day))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+            Text("\(count)")
+                .font(.caption2)
+                .foregroundStyle(.gray)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+    }
+
+    private static func dayTitle(_ day: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(day) { return "Bugun" }
+        if calendar.isDateInYesterday(day) { return "Kecha" }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "uz_UZ")
+        formatter.dateFormat = "d MMMM"
+        return formatter.string(from: day)
     }
 
     private func cell(for item: MediaItem) -> some View {
@@ -203,7 +309,7 @@ struct AlbumView: View {
             Button {
                 selectAllToggle()
             } label: {
-                Text(selection.count == store.items.count ? "Tanlovni bekor qilish" : "Hammasini tanlash")
+                Text(selection.count == visibleItems.count ? "Tanlovni bekor qilish" : "Hammasini tanlash")
                     .font(.footnote)
                     .foregroundStyle(.gray)
             }
@@ -228,6 +334,19 @@ struct AlbumView: View {
                     .background(Color.white, in: Capsule())
                 }
                 .buttonStyle(.plain)
+                .disabled(selection.isEmpty || isExporting)
+                .opacity(selection.isEmpty || isExporting ? 0.4 : 1)
+
+                // Ulashish: ovoz fayllarini galereyaga saqlab bo'lmaydi,
+                // ularni faqat shu yo'l bilan chiqarib olish mumkin.
+                ShareLink(items: selectedItems.map(\.url)) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 54)
+                        .padding(.vertical, 14)
+                        .background(Color.white.opacity(0.12), in: Capsule())
+                }
                 .disabled(selection.isEmpty || isExporting)
                 .opacity(selection.isEmpty || isExporting ? 0.4 : 1)
 
@@ -268,10 +387,10 @@ struct AlbumView: View {
     }
 
     private func selectAllToggle() {
-        if selection.count == store.items.count {
+        if selection.count == visibleItems.count {
             selection.removeAll()
         } else {
-            selection = Set(store.items.map(\.id))
+            selection = Set(visibleItems.map(\.id))
         }
     }
 
@@ -324,7 +443,7 @@ struct AlbumView: View {
 
     // MARK: - Gesture
 
-    /// Chapga surish -> bosh ekranga qaytish.
+    /// O'ngga surish -> bosh ekranga qaytish.
     /// Gorizontal harakat vertikaldan sezilarli ustun bo'lgandagina ishlaydi,
     /// aks holda ro'yxatni aylantirishga xalaqit beradi.
     private var backSwipe: some Gesture {
@@ -332,7 +451,7 @@ struct AlbumView: View {
             .onEnded { value in
                 let dx = value.translation.width
                 let dy = value.translation.height
-                guard dx < -100, -dx > abs(dy) * 2.5 else { return }
+                guard dx > 100, dx > abs(dy) * 2.5 else { return }
                 onBack()
             }
     }
