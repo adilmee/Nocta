@@ -23,12 +23,13 @@ jobs:
         run: |
           xcodebuild -project Nocta.xcodeproj \
             -scheme Nocta \
-            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -configuration Release \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
             build
 
       - name: Package IPA
@@ -43,3 +44,4 @@ jobs:
           name: Nocta-IPA
           path: Nocta.ipa
           retention-days: 7
+
