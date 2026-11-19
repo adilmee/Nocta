@@ -102,7 +102,7 @@ final class MediaStore: ObservableObject {
         io.async { [weak self] in
             guard let self else { return }
 
-            let destination = self.folder.appendingPathComponent("VID_\(Self.stamp()).mov")
+            let destination = self.folder.appendingPathComponent("VID_\(Self.stamp()).mp4")
 
             do {
                 try FileManager.default.moveItem(at: tempURL, to: destination)

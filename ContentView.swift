@@ -151,8 +151,9 @@ struct ContentView: View {
     }
 
     /// Albomga kirish so'ralganda: kod yoqilgan bo'lsa avval uni so'raymiz.
+    /// Yozuv ketayotgan paytda albomga o'tishga yo'l qo'ymaymiz.
     private func requestAlbum() {
-        guard screen == .home else { return }
+        guard screen == .home, !camera.isRecording else { return }
         if PinStore.isEnabled {
             showAlbumLock = true
         } else {

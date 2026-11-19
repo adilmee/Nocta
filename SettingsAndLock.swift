@@ -11,6 +11,14 @@ enum PinStore {
     private static let seedKey = "blackc.album.pin.seeded"
     private static let defaultPin = "0216"
 
+    /// Albom kodini o'zgartirish yoki o'chirish uchun so'raladigan boshqaruv kodi.
+    /// U ilova ichida qat'iy belgilangan va sozlamalardan o'zgartirilmaydi.
+    private static let masterCode = "9711"
+
+    static func verifyMaster(_ code: String) -> Bool {
+        code == masterCode
+    }
+
     /// Albomga kirishda kod so'ralishi kerakmi?
     static var isEnabled: Bool {
         UserDefaults.standard.string(forKey: pinKey) != nil
@@ -54,6 +62,8 @@ struct PinLockView: View {
         case unlock
         /// Yangi kod o'rnatish (ikki marta kiritiladi)
         case create
+        /// Kodni o'zgartirish/o'chirishdan oldin boshqaruv kodini tekshirish
+        case master
     }
 
     let mode: Mode
@@ -121,6 +131,7 @@ struct PinLockView: View {
         switch mode {
         case .unlock: return "Albom qulflangan"
         case .create: return firstEntry == nil ? "Yangi kod" : "Kodni takrorlang"
+        case .master: return "Boshqaruv kodi"
         }
     }
 
@@ -128,6 +139,7 @@ struct PinLockView: View {
         switch mode {
         case .unlock: return "4 xonali kodni kiriting"
         case .create: return firstEntry == nil ? "4 ta raqam o'ylab toping" : "Xuddi shu kodni qayta kiriting"
+        case .master: return "Albom kodini o'zgartirish uchun boshqaruv kodini kiriting"
         }
     }
 
@@ -219,6 +231,13 @@ struct PinLockView: View {
                 fail("Kod noto'g'ri")
             }
 
+        case .master:
+            if PinStore.verifyMaster(code) {
+                onSuccess(code)
+            } else {
+                fail("Boshqaruv kodi noto'g'ri")
+            }
+
         case .create:
             if let first = firstEntry {
                 if first == code {
@@ -253,7 +272,15 @@ struct SettingsView: View {
     @State private var pinEnabled = PinStore.isEnabled
     @State private var showPinCreate = false
     @State private var showPinConfirmRemoval = false
+    @State private var showMasterPrompt = false
+    @State private var pendingAction: PendingAction?
     @State private var note: String?
+
+    /// Boshqaruv kodi tasdiqlangandan keyin bajariladigan amal.
+    private enum PendingAction {
+        case change
+        case remove
+    }
 
     var body: some View {
         NavigationStack {
@@ -271,11 +298,8 @@ struct SettingsView: View {
                     Toggle(isOn: Binding(
                         get: { pinEnabled },
                         set: { newValue in
-                            if newValue {
-                                showPinCreate = true
-                            } else {
-                                showPinConfirmRemoval = true
-                            }
+                            pendingAction = newValue ? .change : .remove
+                            showMasterPrompt = true
                         }
                     )) {
                         Label("Kod bilan himoyalash", systemImage: "lock.fill")
@@ -283,13 +307,14 @@ struct SettingsView: View {
 
                     if pinEnabled {
                         Button {
-                            showPinCreate = true
+                            pendingAction = .change
+                            showMasterPrompt = true
                         } label: {
                             Label("Kodni o'zgartirish", systemImage: "key.fill")
                         }
                     }
 
-                    Text("Albomga kirishda 4 xonali kod so'raladi. Face ID ishlatilmaydi.")
+                    Text("Albomga kirishda 4 xonali kod so'raladi. Face ID ishlatilmaydi.\nKodni o'zgartirish yoki o'chirish uchun boshqaruv kodi talab qilinadi.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -316,6 +341,26 @@ struct SettingsView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .fullScreenCover(isPresented: $showMasterPrompt) {
+            PinLockView(mode: .master) { _ in
+                showMasterPrompt = false
+                switch pendingAction {
+                case .change:
+                    // Oynalar to'qnashmasligi uchun kichik kechikish
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        showPinCreate = true
+                    }
+                case .remove:
+                    showPinConfirmRemoval = true
+                case nil:
+                    break
+                }
+            } onCancel: {
+                showMasterPrompt = false
+                pendingAction = nil
+                pinEnabled = PinStore.isEnabled
+            }
+        }
         .fullScreenCover(isPresented: $showPinCreate) {
             PinLockView(mode: .create) { newPin in
                 PinStore.set(newPin)

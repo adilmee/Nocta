@@ -37,8 +37,8 @@ struct HomeView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
 
-                // Logo va sarlavha biroz pastroqda tursin
-                Spacer().frame(height: 46)
+                // Logo va sarlavha pastroqda tursin
+                Spacer().frame(height: 92)
 
                 header
 
@@ -50,6 +50,12 @@ struct HomeView: View {
                 sourcePicker
                     .padding(.horizontal, 24)
                     .padding(.top, 18)
+
+                if camera.mode == .video {
+                    zoomPicker
+                        .padding(.top, 14)
+                        .transition(.opacity)
+                }
 
                 Text(hintText)
                     .font(.footnote)
@@ -186,6 +192,31 @@ struct HomeView: View {
         .disabled(!camera.isAuthorized)
     }
 
+    // MARK: - Zoom
+
+    /// Video rejimida kamera masshtabi: 0.5x / 1x / 2x.
+    private var zoomPicker: some View {
+        HStack(spacing: 10) {
+            ForEach(camera.availableZooms) { level in
+                let isOn = camera.zoom == level
+                Button {
+                    camera.select(zoom: level)
+                    Haptics.select()
+                } label: {
+                    Text(level.title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(isOn ? .black : .white.opacity(0.8))
+                        .frame(width: 50, height: 32)
+                        .background(
+                            Capsule().fill(isOn ? Color.white : Color.white.opacity(0.10))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .disabled(!camera.isAuthorized)
+    }
+
     private var hintText: String {
         if camera.source == .dual {
             return "Orqa kamera to'liq ekran, old kamera\no'ng yuqori burchakda kichik oynachada"
@@ -241,6 +272,9 @@ struct HomeView: View {
                     badge: store.items.isEmpty ? nil : store.items.count,
                     action: onOpenAlbum
                 )
+                // Yozuv ketayotganda albom ochilmaydi
+                .disabled(camera.isRecording)
+                .opacity(camera.isRecording ? 0.35 : 1)
             }
             .padding(7)
             .liquidGlass(in: RoundedRectangle(cornerRadius: 32, style: .continuous))
@@ -312,7 +346,8 @@ struct HomeView: View {
                 // O'ngga surish -> qora ekran (kamera), chapga surish -> albom.
                 if dx > swipeThreshold {
                     onEnterBlackScreen()
-                } else if dx < -swipeThreshold {
+                } else if dx < -swipeThreshold, !camera.isRecording {
+                    // Yozuv ketayotganda albomga o'tilmaydi.
                     onOpenAlbum()
                 }
             }

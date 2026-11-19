@@ -70,6 +70,25 @@ enum CameraSource: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Zoom
+
+/// Kamera masshtabi. 0.5x faqat ultra-keng linzali qurilmalarda chiqadi.
+enum ZoomLevel: String, CaseIterable, Identifiable {
+    case half
+    case one
+    case two
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .half: return "0.5x"
+        case .one: return "1x"
+        case .two: return "2x"
+        }
+    }
+}
+
 // MARK: - Camera Manager
 
 final class CameraManager: NSObject, ObservableObject {
@@ -83,6 +102,9 @@ final class CameraManager: NSObject, ObservableObject {
     @Published private(set) var isSessionRunning = false
     @Published private(set) var isMultiCamAvailable = false
     @Published private(set) var isBackgroundAudioRecording = false
+    @Published private(set) var zoom: ZoomLevel = .one
+    /// Joriy kamerada mavjud masshtablar (0.5x hamma qurilmada bo'lavermaydi).
+    @Published private(set) var availableZooms: [ZoomLevel] = [.one, .two]
     @Published private(set) var statusMessage: String?
     @Published private(set) var errorMessage: String?
 
@@ -248,6 +270,7 @@ final class CameraManager: NSObject, ObservableObject {
 
         outputSize = portraitSize(for: backDevice.activeFormat)
         applySourceOnQueue(source)
+        refreshAvailableZooms()
     }
 
     private func attach(
@@ -337,7 +360,7 @@ final class CameraManager: NSObject, ObservableObject {
             session.sessionPreset = .high
         }
 
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
+        guard let device = Self.bestCamera(at: position),
               let input = try? AVCaptureDeviceInput(device: device),
               session.canAddInput(input)
         else {
@@ -366,6 +389,20 @@ final class CameraManager: NSObject, ObservableObject {
         }
 
         outputSize = portraitSize(for: device.activeFormat)
+        refreshAvailableZooms()
+    }
+
+    /// 0.5x bo'lishi uchun orqa kamerada ultra-keng linzali virtual qurilmani afzal ko'ramiz.
+    private static func bestCamera(at position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+        if position == .back {
+            if let triple = AVCaptureDevice.default(.builtInTripleCamera, for: .video, position: .back) {
+                return triple
+            }
+            if let dual = AVCaptureDevice.default(.builtInDualWideCamera, for: .video, position: .back) {
+                return dual
+            }
+        }
+        return AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position)
     }
 
     private func configure(_ output: AVCaptureVideoDataOutput) {
@@ -445,12 +482,18 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
+    /// Video doim tik va qat'iy 9:16 nisbatda yoziladi.
+    /// Kameraning o'z formati 4:3 bo'lsa ham natija 9:16 ga keltiriladi,
+    /// chunki kompozitor kadrni shu o'lchamga moslab kesadi.
     private func portraitSize(for format: AVCaptureDevice.Format) -> CGSize {
         let dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
         let short = CGFloat(min(dims.width, dims.height))
-        let long = CGFloat(max(dims.width, dims.height))
-        guard short > 0, long > 0 else { return CGSize(width: 1080, height: 1920) }
-        return CGSize(width: short, height: long)
+        guard short > 0 else { return CGSize(width: 1080, height: 1920) }
+
+        // H.264 juft sonli o'lchamni talab qiladi
+        let width = (short / 2).rounded() * 2
+        let height = ((short * 16.0 / 9.0) / 2).rounded() * 2
+        return CGSize(width: width, height: height)
     }
 
     private func tearDownSession() {
@@ -509,6 +552,58 @@ final class CameraManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Zoom
+
+    func select(zoom newZoom: ZoomLevel) {
+        guard newZoom != zoom, availableZooms.contains(newZoom) else { return }
+        zoom = newZoom
+        sessionQueue.async { [weak self] in
+            self?.applyZoomOnQueue(newZoom)
+        }
+    }
+
+    private func applyZoomOnQueue(_ level: ZoomLevel) {
+        guard let device = primaryInput?.device else { return }
+
+        let factor = zoomFactor(for: level, device: device)
+        do {
+            try device.lockForConfiguration()
+            device.videoZoomFactor = min(
+                max(factor, device.minAvailableVideoZoomFactor),
+                device.maxAvailableVideoZoomFactor
+            )
+            device.unlockForConfiguration()
+        } catch {
+            // Qurilma band bo'lsa, masshtab o'zgarmay qolaveradi.
+        }
+    }
+
+    /// Virtual kamerada (dual/triple) 1.0 — ultra-keng linza, ya'ni 0.5x.
+    /// Oddiy keng linzada esa 1.0 — bu 1x.
+    private func zoomFactor(for level: ZoomLevel, device: AVCaptureDevice) -> CGFloat {
+        let base = device.virtualDeviceSwitchOverVideoZoomFactors.first.map { CGFloat(truncating: $0) } ?? 1.0
+        switch level {
+        case .half: return 1.0
+        case .one: return base
+        case .two: return base * 2
+        }
+    }
+
+    /// Qaysi masshtablar ko'rsatilishini joriy kameraga qarab aniqlaydi.
+    private func refreshAvailableZooms() {
+        let device = primaryInput?.device
+        let hasUltraWide = !(device?.virtualDeviceSwitchOverVideoZoomFactors.isEmpty ?? true)
+        let options: [ZoomLevel] = hasUltraWide ? [.half, .one, .two] : [.one, .two]
+
+        DispatchQueue.main.async {
+            self.availableZooms = options
+            if !options.contains(self.zoom) {
+                self.zoom = .one
+            }
+        }
+        applyZoomOnQueue(options.contains(zoom) ? zoom : .one)
+    }
+
     /// Qora ekranda ketma-ket almashtirish uchun.
     func cycleSource() {
         let sources = availableSources
@@ -530,7 +625,7 @@ final class CameraManager: NSObject, ObservableObject {
     /// Yozish davom etaveradi (AssetWriter sessiyadan mustaqil), lekin videoda qisqa uzilish bo'ladi.
     private func swapSingleCamera(to position: AVCaptureDevice.Position) {
         guard let session,
-              let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
+              let device = Self.bestCamera(at: position),
               let newInput = try? AVCaptureDeviceInput(device: device)
         else { return }
 
@@ -551,6 +646,8 @@ final class CameraManager: NSObject, ObservableObject {
             applyPortrait(connection, mirrored: position == .front)
             primaryConnection = connection
         }
+
+        refreshAvailableZooms()
     }
 
     // MARK: - Session start / stop
@@ -585,11 +682,11 @@ final class CameraManager: NSObject, ObservableObject {
             guard let self, let engine = self.engine, !engine.isRecording else { return }
 
             let url = FileManager.default.temporaryDirectory
-                .appendingPathComponent("NoctaTmp_\(UUID().uuidString).mov")
+                .appendingPathComponent("blackC_\(UUID().uuidString).mp4")
 
             let audioSettings: [String: Any]? = self.audioDeviceInput == nil
                 ? nil
-                : self.audioOutput.recommendedAudioSettingsForAssetWriter(writingTo: .mov)
+                : self.audioOutput.recommendedAudioSettingsForAssetWriter(writingTo: .mp4)
 
             do {
                 try engine.start(url: url, size: self.outputSize, audioSettings: audioSettings)

@@ -53,7 +53,7 @@ final class RecordingEngine {
     // MARK: - Start
 
     func start(url: URL, size: CGSize, audioSettings: [String: Any]?) throws {
-        let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
 
         let width = Int(size.width.rounded())
         let height = Int(size.height.rounded())
